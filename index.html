@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfolio Horizon - Créatif & Tech</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#38bdf8', // Sky 400
+              secondary: '#a855f7', // Purple 500
+              accent: '#f472b6', // Pink 400
+              dark: '#0f172a', // Slate 900
+            },
+            animation: {
+              'float': 'float 6s ease-in-out infinite',
+              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'spin-slow': 'spin 12s linear infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0)' },
+                '50%': { transform: 'translateY(-20px)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Space Grotesk', sans-serif;
+        overflow-x: hidden;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        @apply bg-slate-50 dark:bg-slate-900;
+      }
+      ::-webkit-scrollbar-thumb {
+        @apply bg-slate-300 dark:bg-slate-700;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        @apply bg-slate-400 dark:bg-slate-600;
+      }
+      .glass-panel {
+        background: rgba(30, 41, 59, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      .dark .glass-panel {
+         background: rgba(30, 41, 59, 0.4);
+         border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      html:not(.dark) .glass-panel {
+         background: rgba(255, 255, 255, 0.7);
+         border: 1px solid rgba(0, 0, 0, 0.05);
+         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+      .glow-text {
+        text-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+      }
+      /* New Styles for Originality */
+      .text-stroke {
+        -webkit-text-stroke: 1px rgba(0, 0, 0, 0.2); /* Light mode stroke */
+        color: transparent;
+      }
+      .dark .text-stroke {
+        -webkit-text-stroke: 1px rgba(255, 255, 255, 0.2); /* Dark mode stroke */
+      }
+      
+      .bg-grid-pattern {
+        background-image: linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+        background-size: 60px 60px;
+        mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+        -webkit-mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
+      }
+      .dark .bg-grid-pattern {
+         background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                          linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+    <div id="root"></div>
+  </body>
+</html>
