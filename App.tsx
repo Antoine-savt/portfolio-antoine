@@ -1,5 +1,5 @@
-import React, { useState, useEffect, memo } from 'react';
-import { Mail, ChevronDown, Instagram, Linkedin, Twitter, Send, Home, User, Plus, Filter, Sparkles, Gamepad2, MessageSquare, Layout, RefreshCw, CheckCircle2, CreditCard, Package, ArrowRight, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, memo, useRef } from 'react';
+import { Mail, ChevronDown, Instagram, Linkedin, Twitter, Send, Home, User, Plus, Filter, Sparkles, Gamepad2, MessageSquare, Layout, RefreshCw, CheckCircle2, CreditCard, Package, ArrowRight, ExternalLink, ArrowUpRight, Code, Terminal, MapPin, Globe } from 'lucide-react';
 import { PROJECTS } from './constants';
 import { ProjectCategory, Project } from './types';
 import ProjectDetail from './components/ProjectDetail';
@@ -10,14 +10,13 @@ type ViewState = 'home' | 'about' | 'project';
 
 // --- OPTIMIZED COMPONENTS ---
 
-// 1. Spotlight isolé pour éviter de re-render toute l'App à chaque mouvement de souris
+// 1. Spotlight isolé
 const Spotlight = memo(() => {
   const [pos, setPos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     let frameId: number;
     const handleMouseMove = (e: MouseEvent) => {
-        // Simple throttling via RAF
         cancelAnimationFrame(frameId);
         frameId = requestAnimationFrame(() => {
             setPos({ x: e.clientX, y: e.clientY });
@@ -36,62 +35,67 @@ const Spotlight = memo(() => {
         className="fixed inset-0 pointer-events-none transition-opacity duration-300 z-0 mix-blend-screen opacity-100"
         style={{
             background: `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(56, 189, 248, 0.20), transparent 80%)`,
-            willChange: 'background' // Hint for browser optimization
+            willChange: 'background'
         }}
     />
   );
 });
 
-// 2. Composant Image de Galerie optimisé (évite le démontage/remontage du DOM)
-const GalleryPreview = ({ activeProjectId }: { activeProjectId: string }) => {
-    const activeProject = PROJECTS.find(p => p.id === activeProjectId) || PROJECTS[0];
+// 2. Composant de prévisualisation flottante (Suit la souris)
+const FloatingPreview = ({ activeProject, isVisible, cursorX, cursorY }: { activeProject: Project | null, isVisible: boolean, cursorX: number, cursorY: number }) => {
+    // Utilisation d'un ref pour l'animation fluide via CSS transform direct (évite les re-renders React trop fréquents)
+    const previewRef = useRef<HTMLDivElement>(null);
+    const [displayedProject, setDisplayedProject] = useState<Project | null>(null);
+
+    // On met à jour le projet affiché seulement s'il y en a un actif.
+    // S'il devient null (sortie de souris), on garde l'ancien pour l'animation de sortie.
+    useEffect(() => {
+        if (activeProject) {
+            setDisplayedProject(activeProject);
+        }
+    }, [activeProject]);
+
+    useEffect(() => {
+        if (previewRef.current) {
+            // Animation "Lag" simple via CSS transition ou interpolation directe
+            const x = cursorX; 
+            const y = cursorY;
+            
+            // On décale l'image pour qu'elle ne soit pas pile sous la souris pour la lisibilité
+             previewRef.current.animate({
+                transform: `translate(${x}px, ${y}px) translate(-50%, -60%) rotate(${x * 0.01}deg)`
+             }, { duration: 400, fill: "forwards", easing: "ease-out" }); // Durée réduite pour moins de latence
+        }
+    }, [cursorX, cursorY]);
+
+    if (!displayedProject) return null;
 
     return (
-        <div className="sticky top-32 h-[600px] w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-slate-900 group relative">
-            {/* Stacked Images for smooth transition */}
-            {PROJECTS.map((project) => (
-                <div 
-                    key={project.id}
-                    className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${project.id === activeProjectId ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
-                >
+        <div 
+            ref={previewRef}
+            className={`pointer-events-none fixed top-0 left-0 z-50 w-[300px] h-[200px] rounded-xl overflow-hidden shadow-2xl transition-all duration-500 ease-out hidden lg:block ${isVisible ? 'opacity-100 scale-100 blur-0' : 'opacity-0 scale-75 blur-md'}`}
+        >
+             {/* Border Gradient wrapper */}
+            <div className="absolute inset-0 p-[1px] bg-gradient-to-br from-white/30 to-transparent rounded-xl">
+                 <div className="relative w-full h-full bg-slate-900 rounded-xl overflow-hidden">
                     <img 
-                        src={project.imageUrl} 
-                        alt={project.title}
-                        className="w-full h-full object-cover"
-                        loading="eager" // Force loading mainly for the first view
+                        src={displayedProject.imageUrl} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover opacity-90"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/20 to-transparent opacity-90" />
-                </div>
-            ))}
-
-            {/* Overlay Info (Dynamique) */}
-            <div className="absolute bottom-0 left-0 p-8 w-full z-20">
-                 <div className="flex justify-between items-end">
-                    <div>
-                        <div className="flex gap-2 mb-3 animate-in fade-in slide-in-from-bottom-2 duration-300" key={`tags-${activeProject.id}`}>
-                            {activeProject.tags.slice(0, 3).map(tag => (
-                                <span key={tag} className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 bg-white/20 backdrop-blur-md rounded text-white border border-white/10">
-                                    {tag}
-                                </span>
-                            ))}
+                    {/* Overlay Info sur l'image */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent flex flex-col justify-end p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                            <span className="text-[9px] text-slate-300 font-mono uppercase tracking-widest">{displayedProject.category}</span>
                         </div>
-                        <p className="text-slate-300 line-clamp-2 max-w-md text-lg leading-relaxed animate-in fade-in slide-in-from-bottom-2 duration-300 delay-75" key={`desc-${activeProject.id}`}>
-                            {activeProject.description}
-                        </p>
+                        <span className="text-white font-bold font-sans text-lg">{displayedProject.title}</span>
                     </div>
-                </div>
-            </div>
-            
-            {/* Corner Decoration */}
-            <div className="absolute top-4 right-4 flex gap-1 z-20">
-                    <div className="w-2 h-2 rounded-full bg-red-500/50"></div>
-                    <div className="w-2 h-2 rounded-full bg-yellow-500/50"></div>
-                    <div className="w-2 h-2 rounded-full bg-green-500/50"></div>
+                 </div>
             </div>
         </div>
     );
 };
-
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');
@@ -99,8 +103,9 @@ const App: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [scrolled, setScrolled] = useState(false);
   
-  // State for the new Gallery Design
-  const [hoveredProjectId, setHoveredProjectId] = useState<string>(PROJECTS[0].id);
+  // State for the new Directory Design
+  const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 
   // Force Dark Mode
   useEffect(() => {
@@ -118,18 +123,21 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+      // On met à jour la position seulement si on est dans la section projets (optimisation)
+      setCursorPos({ x: e.clientX, y: e.clientY });
+  };
+
   const filteredProjects = filter === 'All' 
     ? PROJECTS 
     : PROJECTS.filter(p => p.category === filter);
 
-  // Determine active project for preview (if filtered out, default to first visible)
-  const displayProjectId = filteredProjects.find(p => p.id === hoveredProjectId)?.id || filteredProjects[0]?.id || PROJECTS[0].id;
-  const activeProject = PROJECTS.find(p => p.id === displayProjectId) || PROJECTS[0];
-
+  const activeHoveredProject = PROJECTS.find(p => p.id === hoveredProjectId) || null;
   const categories = ['All', ...Object.values(ProjectCategory)];
 
   // Navigation Logic
   const handleProjectClick = (project: Project) => {
+    setHoveredProjectId(null); // BUG FIX: Clear preview immediately on click
     setSelectedProject(project);
     setView('project');
     window.scrollTo(0, 0);
@@ -179,6 +187,14 @@ const App: React.FC = () => {
       {/* Optimized Spotlight */}
       <Spotlight />
       
+      {/* Floating Preview Image (Only visible on Desktop when hovering list) */}
+      <FloatingPreview 
+        activeProject={activeHoveredProject} 
+        isVisible={!!hoveredProjectId} 
+        cursorX={cursorPos.x} 
+        cursorY={cursorPos.y} 
+      />
+
       {/* Grid Background Pattern */}
       <div className="fixed inset-0 pointer-events-none z-0 bg-grid-pattern opacity-[0.15]" />
 
@@ -249,30 +265,118 @@ const App: React.FC = () => {
                 {/* Hero Section */}
                 <section id="hero" className="relative min-h-screen flex items-center px-6 md:px-12 pt-20 overflow-hidden">
                     <div className="w-full max-w-7xl mx-auto relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                        <div className="lg:col-span-8 flex flex-col justify-center">
-                            <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9] mb-8 text-white">
-                                <span className="block text-stroke hover:text-white transition-colors duration-500 cursor-default">SCULPTEUR</span>
-                                <div className="flex items-center gap-4">
-                                    <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-white animate-pulse-slow">DIGITAL</span>
-                                </div>
+                        
+                        {/* LEFT: TEXT CONTENT */}
+                        <div className="lg:col-span-7 flex flex-col justify-center">
+                            
+                            {/* Status Badge */}
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 w-fit mb-8 animate-in slide-in-from-left-4 duration-700">
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                <span className="text-xs font-mono text-green-400 font-bold uppercase tracking-widest">Available for projects</span>
+                            </div>
+
+                            {/* Main Title */}
+                            <h1 className="text-[clamp(3.5rem,8vw,8rem)] font-bold tracking-tighter leading-[0.9] mb-6 text-white">
+                                <span className="block text-stroke hover:text-white transition-colors duration-500 cursor-default">ANTOINE</span>
+                                <span className="block text-white">SAVOYANT</span>
                             </h1>
-                            <p className="text-xl text-slate-400 max-w-xl border-l-2 border-primary/30 pl-6 py-2">
-                                Je transforme des concepts abstraits en interfaces tangibles. 
+                            
+                            {/* Subtitle */}
+                            <p className="text-xl md:text-2xl text-slate-400 max-w-xl border-l-2 border-primary/30 pl-6 py-2 mb-8">
+                                Creative Developer & UI Designer.
                                 <br />
-                                <span className="text-white font-medium">Frontend • Creative Dev • UI/UX</span>
+                                <span className="text-slate-500 text-base mt-2 block">
+                                    Je construis des interfaces web immersives et performantes avec une attention maniaque aux détails.
+                                </span>
                             </p>
-                            <div className="mt-12 flex items-center gap-6">
+
+                            {/* CTA Buttons */}
+                            <div className="flex flex-wrap items-center gap-6 mb-12">
                                 <button 
                                     onClick={() => document.getElementById('projects')?.scrollIntoView({ behavior: 'smooth' })}
-                                    className="px-8 py-4 bg-white text-slate-900 font-bold hover:scale-105 transition-transform rounded-full shadow-lg"
+                                    className="px-8 py-4 bg-white text-slate-900 font-bold hover:bg-primary hover:text-black hover:scale-105 transition-all rounded-full shadow-lg flex items-center gap-2"
                                 >
-                                    EXPLORER LE TRAVAIL
+                                    EXPLORER <ArrowRight size={18} />
                                 </button>
-                                <button onClick={() => handleNav('about')} className="text-slate-400 hover:text-white underline decoration-slate-700 underline-offset-4 font-mono text-sm">
-                                    QUI JE SUIS ?
+                                <button onClick={() => handleNav('about')} className="text-slate-400 hover:text-white underline decoration-slate-700 underline-offset-4 font-mono text-sm px-4 py-2">
+                                    MON PROFIL & SKILLS
                                 </button>
                             </div>
+
+                            {/* Social Proof / Links Row */}
+                            <div className="flex items-center gap-6 text-slate-500">
+                                <a href="https://github.com/Antoine-savt" target="_blank" rel="noreferrer" className="hover:text-white transition-colors flex items-center gap-2 text-sm font-mono">
+                                    <span className="p-2 bg-white/5 rounded-full"><Code size={16} /></span> GitHub
+                                </a>
+                                <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
+                                <a href="#" className="hover:text-white transition-colors flex items-center gap-2 text-sm font-mono">
+                                    <span className="p-2 bg-white/5 rounded-full"><Linkedin size={16} /></span> LinkedIn
+                                </a>
+                                <div className="w-1 h-1 bg-slate-700 rounded-full"></div>
+                                <a href="#" className="hover:text-white transition-colors flex items-center gap-2 text-sm font-mono">
+                                    <span className="p-2 bg-white/5 rounded-full"><Twitter size={16} /></span> Twitter
+                                </a>
+                            </div>
                         </div>
+
+                        {/* RIGHT: ABSTRACT VISUAL / TECH CARD */}
+                        <div className="lg:col-span-5 hidden lg:flex justify-end items-center h-full perspective-1000">
+                             {/* Floating Glass Card */}
+                             <div className="relative w-full max-w-md p-1 rounded-2xl bg-gradient-to-br from-white/10 to-transparent animate-float">
+                                <div className="bg-slate-900/60 backdrop-blur-xl rounded-xl border border-white/10 p-6 shadow-2xl relative overflow-hidden">
+                                    {/* Decoration */}
+                                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 rounded-full blur-[40px]"></div>
+                                    <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-secondary/20 rounded-full blur-[40px]"></div>
+                                    
+                                    {/* Card Header */}
+                                    <div className="flex justify-between items-start mb-8 relative z-10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center">
+                                                <Terminal size={18} className="text-primary"/>
+                                            </div>
+                                            <div>
+                                                <h3 className="text-white font-bold text-sm">Antoine.tsx</h3>
+                                                <span className="text-[10px] text-slate-400 font-mono">React Developer</span>
+                                            </div>
+                                        </div>
+                                        <Globe size={18} className="text-slate-500 animate-pulse-slow" />
+                                    </div>
+
+                                    {/* Code/Data Viz */}
+                                    <div className="space-y-4 font-mono text-xs relative z-10">
+                                        <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                                            <span>Current Location</span>
+                                            <span className="text-white flex items-center gap-1"><MapPin size={10} /> Paris, FR</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-slate-400 pb-2 border-b border-white/5">
+                                            <span>Main Focus</span>
+                                            <span className="text-primary">Frontend Architecture</span>
+                                        </div>
+                                        
+                                        <div className="pt-2">
+                                            <span className="block text-slate-500 mb-2">Favorite Stack</span>
+                                            <div className="flex flex-wrap gap-2">
+                                                {['Next.js', 'TypeScript', 'Tailwind', 'Motion'].map(tech => (
+                                                    <span key={tech} className="px-2 py-1 rounded bg-white/5 border border-white/5 text-slate-300">
+                                                        {tech}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom Activity */}
+                                    <div className="mt-6 p-3 bg-black/20 rounded-lg border border-white/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                                            <span className="text-[10px] text-slate-300 font-mono">Compiling...</span>
+                                        </div>
+                                        <span className="text-[10px] text-slate-500">v2.4.0</span>
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+
                     </div>
                     {/* Scroll Indicator */}
                     <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center gap-2 opacity-50 text-white">
@@ -281,104 +385,127 @@ const App: React.FC = () => {
                     </div>
                 </section>
 
-                {/* REDESIGNED GALLERY: Sticky Preview List */}
-                <section id="projects" className="py-20 relative">
+                {/* --- NEW DESIGN: THE DIRECTORY LIST --- */}
+                <section 
+                    id="projects" 
+                    className="py-20 relative" 
+                    onMouseMove={handleMouseMove} // Track mouse for preview
+                >
                     <div className="max-w-7xl mx-auto px-6 md:px-12">
                         
-                        {/* Header */}
-                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-16 gap-8">
+                        {/* Header & Filter */}
+                        <div className="flex flex-col md:flex-row justify-between items-end mb-20 gap-8">
                             <div>
-                                <span className="text-primary font-mono text-sm mb-2 block tracking-widest flex items-center gap-2">
-                                    <Sparkles size={14} /> SÉLECTION
+                                <span className="text-primary font-mono text-sm mb-2 block tracking-widest flex items-center gap-2 uppercase">
+                                    <Sparkles size={14} /> Travaux & Projets
                                 </span>
-                                <h2 className="text-4xl md:text-6xl font-bold text-white">
-                                    Index <span className="text-slate-600">Projets</span>
+                                <h2 className="text-5xl md:text-7xl font-bold text-white">
+                                    Mes <br/><span className="text-slate-700 dark:text-slate-600">Réalisations.</span>
                                 </h2>
                             </div>
                             
-                            {/* Filters */}
-                            <div className="flex flex-wrap gap-x-6 gap-y-2 lg:justify-end border-b border-white/10 pb-4">
-                                <div className="flex items-center gap-2 text-xs font-mono text-slate-500 mr-4">
-                                    <Filter size={12} /> FILTRER :
-                                </div>
+                            {/* Stylish Filters */}
+                            <div className="flex flex-wrap gap-2">
                                 {categories.map(cat => (
                                     <button
                                     key={cat}
                                     onClick={() => setFilter(cat as ProjectCategory | 'All')}
-                                    className={`text-sm tracking-wider transition-all relative group ${
+                                    className={`px-4 py-2 rounded-full text-sm font-mono transition-all duration-300 border ${
                                         filter === cat 
-                                        ? 'text-white font-bold' 
-                                        : 'text-slate-500 hover:text-slate-300'
+                                        ? 'bg-white text-black border-white' 
+                                        : 'bg-transparent text-slate-500 border-slate-800 hover:border-slate-500 hover:text-white'
                                     }`}
                                     >
                                     {cat}
-                                    <span className={`absolute -bottom-4 left-0 w-full h-0.5 bg-primary transition-all duration-300 ${filter === cat ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-50'}`}></span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Interactive List Layout */}
-                        <div className="flex flex-col lg:flex-row gap-12 lg:gap-24">
-                            
-                            {/* LEFT COLUMN: Sticky Image Preview (Desktop) */}
-                            <div className="hidden lg:block lg:w-1/2 relative">
-                                <GalleryPreview activeProjectId={displayProjectId} />
-                                {/* Button Action (Moved outside for better context) */}
-                                <div className="absolute -right-6 top-[550px] z-30">
-                                     <button 
-                                        onClick={() => handleProjectClick(activeProject)}
-                                        className="w-20 h-20 bg-primary text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-[0_0_30px_rgba(56,189,248,0.4)] group"
-                                    >
-                                        <ArrowRight size={32} className="group-hover:-rotate-45 transition-transform duration-300" />
-                                    </button>
-                                </div>
-                            </div>
+                        {/* DESKTOP LIST VIEW */}
+                        <div className="hidden lg:flex flex-col w-full border-t border-white/10">
+                            {filteredProjects.map((project, index) => (
+                                <div 
+                                    key={project.id}
+                                    onMouseEnter={() => setHoveredProjectId(project.id)}
+                                    onMouseLeave={() => setHoveredProjectId(null)}
+                                    onClick={() => handleProjectClick(project)}
+                                    className={`group relative py-10 border-b border-white/10 cursor-pointer transition-all duration-500 flex items-center justify-between px-4 hover:px-8 hover:bg-white/5 ${
+                                        hoveredProjectId && hoveredProjectId !== project.id ? 'opacity-30 blur-[1px]' : 'opacity-100'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-12">
+                                        <span className="font-mono text-xl text-slate-600 group-hover:text-primary transition-colors">
+                                            0{index + 1}
+                                        </span>
+                                        <h3 className="text-5xl md:text-6xl font-bold text-white group-hover:text-white transition-transform duration-300 group-hover:translate-x-4 tracking-tight">
+                                            {project.title}
+                                        </h3>
+                                    </div>
 
-                            {/* RIGHT COLUMN: Scrollable List */}
-                            <div className="w-full lg:w-1/2 flex flex-col">
-                                {filteredProjects.map((project, index) => (
-                                    <div 
-                                        key={project.id}
-                                        onMouseEnter={() => setHoveredProjectId(project.id)}
-                                        onClick={() => handleProjectClick(project)}
-                                        className={`group relative py-12 border-b border-white/5 cursor-pointer transition-all duration-500 ${hoveredProjectId === project.id ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}
-                                    >
-                                        <div className="flex items-baseline justify-between mb-4">
-                                            <div className="flex items-center gap-6">
-                                                <span className={`font-mono text-sm transition-colors duration-300 ${hoveredProjectId === project.id ? 'text-primary' : 'text-slate-500'}`}>0{index + 1}</span>
-                                                <h3 className={`text-4xl md:text-5xl font-bold transition-all duration-300 ${hoveredProjectId === project.id ? 'text-white translate-x-4' : 'text-slate-400'}`}>
-                                                    {project.title}
-                                                </h3>
+                                    <div className="flex items-center gap-16">
+                                        <div className="text-right hidden xl:block">
+                                            <span className="block text-xs font-mono text-slate-500 uppercase mb-1">Services</span>
+                                            <div className="flex gap-2 justify-end">
+                                                {project.tags.slice(0, 2).map(tag => (
+                                                    <span key={tag} className="text-xs font-mono text-slate-400 border border-white/5 px-2 py-1 rounded bg-white/5">{tag}</span>
+                                                ))}
                                             </div>
-                                            <span className="font-mono text-xs text-slate-600 border border-white/5 px-2 py-1 rounded hidden sm:block">
-                                                {project.year}
-                                            </span>
                                         </div>
                                         
-                                        <div className={`pl-12 transition-all duration-500 overflow-hidden ease-in-out ${hoveredProjectId === project.id ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}>
-                                            <p className="text-slate-400 text-lg mb-4 w-10/12">{project.description}</p>
-                                            <span className="text-primary text-sm font-bold flex items-center gap-2 group-hover:gap-3 transition-all">
-                                                Voir le cas d'étude <ArrowRight size={16} />
+                                        <div className="flex items-center gap-8 min-w-[150px] justify-end">
+                                            <span className="text-sm font-mono text-slate-500 border border-white/10 px-3 py-1 rounded-full group-hover:bg-white group-hover:text-black transition-colors">
+                                                {project.year}
                                             </span>
-                                        </div>
-
-                                        {/* Mobile Only Image (visible always on mobile since sticky preview is hidden) */}
-                                        <div className="lg:hidden mt-6 rounded-xl overflow-hidden aspect-video relative group-hover:ring-2 ring-primary/50 transition-all">
-                                            <img src={project.imageUrl} alt={project.title} className="w-full h-full object-cover" />
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <span className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm font-bold border border-white/20">Explorer</span>
+                                            <div className="w-14 h-14 rounded-full border border-white/20 flex items-center justify-center group-hover:bg-primary group-hover:border-primary group-hover:text-black transition-all duration-300 transform group-hover:scale-110">
+                                                <ArrowRight size={24} className="group-hover:-rotate-45 transition-transform duration-300" />
                                             </div>
                                         </div>
                                     </div>
-                                ))}
-                                
-                                <div className="py-24 flex justify-center">
-                                    <p className="text-slate-600 font-mono text-sm">Fin de la sélection.</p>
                                 </div>
-                            </div>
-
+                            ))}
                         </div>
+
+                        {/* MOBILE GRID VIEW (Fallback) */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:hidden">
+                            {filteredProjects.map((project, index) => (
+                                <div 
+                                    key={project.id}
+                                    onClick={() => handleProjectClick(project)}
+                                    className="group relative bg-slate-900 border border-white/10 rounded-2xl overflow-hidden shadow-lg cursor-pointer"
+                                >
+                                    <div className="aspect-[4/3] overflow-hidden">
+                                        <img 
+                                            src={project.imageUrl} 
+                                            alt={project.title} 
+                                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                                        />
+                                        <div className="absolute inset-0 bg-black/50 group-hover:bg-black/20 transition-colors duration-500" />
+                                    </div>
+                                    
+                                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent">
+                                        <div className="flex justify-between items-start mb-2">
+                                             <span className="text-primary text-xs font-mono uppercase tracking-wider">{project.category}</span>
+                                             <span className="text-slate-400 text-xs font-mono">{project.year}</span>
+                                        </div>
+                                        <h3 className="text-3xl font-bold text-white mb-2">{project.title}</h3>
+                                        <div className="flex items-center gap-2 text-sm text-white font-bold mt-4">
+                                            Voir le projet <ArrowRight size={16} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="py-24 flex justify-center text-center">
+                            <div>
+                                <p className="text-slate-600 font-mono text-sm mb-2">Envie d'en voir plus ?</p>
+                                <a href="https://github.com/Antoine-savt" target="_blank" rel="noreferrer" className="text-white border-b border-white hover:text-primary hover:border-primary transition-colors pb-1 inline-flex items-center gap-2">
+                                    Explorer les archives GitHub <ArrowUpRight size={14} />
+                                </a>
+                            </div>
+                        </div>
+
                     </div>
                 </section>
 
